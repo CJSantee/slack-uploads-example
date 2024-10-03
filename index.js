@@ -16,18 +16,16 @@ const length = fs.statSync(filePath).size;
 
 (async () => {
   // See: https://api.slack.com/methods/files.getUploadURLExternal
-
-  const getUploadRes = await web.files.getUploadURLExternal({
+  const {upload_url, file_id} = await web.files.getUploadURLExternal({
     length,
     filename,
   });
 
-  const {upload_url, file_id} = getUploadRes;
-
   // Read the file from the file system
   const fileBuffer = fs.readFileSync(filePath);
 
-  const uploadRes = await fetch(upload_url, {
+  // Upload the file to the provided upload_url
+  await fetch(upload_url, {
     method: 'POST',
     body: fileBuffer,
     headers: {
@@ -37,18 +35,21 @@ const length = fs.statSync(filePath).size;
   });
 
   // See: https://api.slack.com/methods/files.completeUploadExternal
+  const {files: [{url_private}]} = await web.files.completeUploadExternal({files: [{id: file_id}]});
 
-  const completeUploadRes = await web.files.completeUploadExternal({files: [{id: file_id}]});
+  // UPDATE THIS
+  const WAIT_TWO_SECONDS = false;
 
-  const {files: [{url_private}]} = completeUploadRes;
+  if(WAIT_TWO_SECONDS) {
+    await new Promise((resolve) => {
+      setTimeout(() => {
+        resolve(true);
+      }, 2000);
+    });
+  }
 
-  await new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(true);
-    }, 2000);
-  });
-
-  const postMessageRes = await web.chat.postMessage({
+  // See: https://api.slack.com/methods/chat.postMessage
+  const res = await web.chat.postMessage({
     username: 'Bot',
     channel,
     text: filename,
@@ -65,5 +66,5 @@ const length = fs.statSync(filePath).size;
   });
 
   // `res` contains information about the posted message
-  console.log('postMessageRes', postMessageRes);
+  console.log('res', res);
 })();
